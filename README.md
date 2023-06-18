@@ -10,8 +10,6 @@ The explanation part for code related to the azure face recognition you can find
 ## move data to blob storage
 Now I´m going to explain how we can move the data we´re creating to a blob storage. I´ll create a new file for it.
 
-
-```
 We´ll  need these values to our key.json to use as credentials to connect to our blob storage.
 
 ```Python
