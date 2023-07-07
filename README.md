@@ -153,7 +153,7 @@ Th Python code that we need to add to the face_recogniton code is very simple. J
 ```python
 import urllib.request
 
-root_url = "http://192.168.0.194"
+root_url = "http://192.168.0.176"
 
 def sendRequest(url):
 	urllib.request.urlopen(url) # send request to ESP
