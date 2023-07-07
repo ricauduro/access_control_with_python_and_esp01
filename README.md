@@ -64,7 +64,9 @@ Work with Arduino can be very gratifying, when our first led start blynking it´
 
 https://www.blogdarobotica.com/2020/09/18/programando-o-esp01-utilizando-o-adaptador-usb-serial-para-esp8266-esp-01/
 
-After seting up the ESP, you can upload this sketch to the ESP-01, but with a little modification. 
+The ESP-01 code is very simple, it works like a web server, that´s expecting a call, and depending on the value received, it will send or not an event to our door lock.
+
+first we start with the imports and the definitions
 
 ```C++
 #include <ESP8266WiFi.h>
@@ -76,9 +78,15 @@ After seting up the ESP, you can upload this sketch to the ESP-01, but with a li
 
 const char* ssid = STASSID;
 const char* password = STAPSK;
+```
 
+with this we start the server
+```C++
 WiFiServer server(80);
+```
 
+Here we´ll set the gpio0 a 2 as outputs and set the initial state as LOW,
+```C++
 void setup() {
   delay(5000);
   pinMode(0, OUTPUT);
@@ -88,9 +96,10 @@ void setup() {
   // Serial.begin(9600);
   // Serial.print("Connecting to ");
   // Serial.println(ssid);
-
+```
+Then we can set the wifi mode as station and begin the connection
+```C++
   WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
 
   WiFi.begin(ssid,password);
 
@@ -104,7 +113,10 @@ void setup() {
   server.begin();
   delay(1000);
 }
+```
+On the loop we expecting to receive an request like this 'http://192.168.0.1/open' to open the lock. So we´ll parse our result to check if we have the 'open' at the end, and if so, we´ll change the value of the pins to HIGH, openning the lock
 
+```C++
 void loop() {
   WiFiClient client;
   client = server.available();
@@ -130,6 +142,8 @@ void loop() {
 }
 
 ```
+After seting up the ESP, you can upload this sketch to the ESP-01, but with a little modification. 
+
 I leave some lines commented, because we won´t need the serial output while running in production, but we´ll need it to get the ESP-01 IP to stabilish the communication between the ESP and our Python code. So before upload the first time, uncomment the lines, plug the ESP in the USB port, open the serial monitor and get the ESP-01 IP
 
 ![image](https://github.com/ricauduro/access_control_face_reco_and_arduino/assets/58055908/8ec8edf7-1b2a-493a-99cb-92b4435a0be9)
