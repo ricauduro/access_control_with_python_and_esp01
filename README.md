@@ -148,3 +148,15 @@ I leave some lines commented, because we won´t need the serial output while run
 
 ![image](https://github.com/ricauduro/access_control_face_reco_and_arduino/assets/58055908/8ec8edf7-1b2a-493a-99cb-92b4435a0be9)
 
+Th Python code that we need to add to the face_recogniton code is very simple. Just send a request to the IP we got from the ESP-01, with '/open' at the end.
+
+```python
+import urllib.request
+
+root_url = "http://192.168.0.194"
+
+def sendRequest(url):
+	urllib.request.urlopen(url) # send request to ESP
+
+sendRequest(root_url+"/open")
+```
