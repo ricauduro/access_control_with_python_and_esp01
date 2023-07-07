@@ -5,7 +5,9 @@
 
  ![image](https://github.com/ricauduro/access_control_with_azure_face_reco_and_arduino/assets/58055908/f4dd4163-bf71-4923-9d67-8f1b2acccf16)
 
-The explanation part for code related to the azure face recognition you can find in the video_face_recognition repo. So I´ll start explaining how we can move the data to azure and then how we can set up the Arduino to control the lock.
+The explanation part for code related to the azure face recognition you can find in the video_face_recognition repo, so please check out the video_face_recognition repo before this one. 
+
+So I´ll start explaining how we can move the data to azure and then how we can set up the Arduino to control the lock.
 
 ## move data to blob storage
 Now I´m going to explain how we can move the data we´re creating to a blob storage. I´ll create a new file for it.
@@ -55,3 +57,80 @@ This is how the data should be in our storage
 ![image](https://github.com/ricauduro/video_face_recognition/assets/58055908/b84120f9-c0e0-4894-b0fa-7eb3fbd38ab3)
 
 ![image](https://github.com/ricauduro/video_face_recognition/assets/58055908/3eea1219-c3c1-4d66-a8ad-dd09db8376fd)
+
+## set up the ESP-01
+
+Work with Arduino can be very gratifying, when our first led start blynking it´s awesome. I found this link that is explaining how to set the ESP-01 step by step the same way I did it. 
+
+https://www.blogdarobotica.com/2020/09/18/programando-o-esp01-utilizando-o-adaptador-usb-serial-para-esp8266-esp-01/
+
+After seting up the ESP, you can upload this sketch to the ESP-01, but with a little modification. 
+
+```C++
+#include <ESP8266WiFi.h>
+
+#ifndef STASSID
+#define STASSID "*****"
+#define STAPSK "******"
+#endif
+
+const char* ssid = STASSID;
+const char* password = STAPSK;
+
+WiFiServer server(80);
+
+void setup() {
+  delay(5000);
+  pinMode(0, OUTPUT);
+  pinMode(2, OUTPUT);
+  digitalWrite(0, LOW);
+  digitalWrite(2, LOW);
+  // Serial.begin(9600);
+  // Serial.print("Connecting to ");
+  // Serial.println(ssid);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+
+  WiFi.begin(ssid,password);
+
+  while (WiFi.status() != WL_CONNECTED){
+    delay(500);
+    // Serial.print(".");
+  }
+
+  // Serial.println("ESP-01 is connected to the ssid");
+  // Serial.println(WiFi.localIP());
+  server.begin();
+  delay(1000);
+}
+
+void loop() {
+  WiFiClient client;
+  client = server.available();
+
+  if (client == 1){
+    String request = client.readStringUntil('\n');
+    client.flush();
+    // Serial.println(request);
+
+    if (request.indexOf("open") != -1){
+      digitalWrite(0, HIGH);
+      delay(5000);
+      digitalWrite(0, LOW);
+      delay(1000);
+      digitalWrite(2, HIGH);
+      delay(5000);
+      digitalWrite(2, LOW);
+      // Serial.println("Openning door");
+    }
+    // Serial.print("Client Disconnected");
+    // Serial.println(" ");
+  }
+}
+
+```
+I leave some lines commented, because we won´t need the serial output while running in production, but we´ll need it to get the ESP-01 IP to stabilish the communication between the ESP and our Python code. So before upload the first time, uncomment the lines, plug the ESP in the USB port, open the serial monitor and get the ESP-01 IP
+
+![image](https://github.com/ricauduro/access_control_face_reco_and_arduino/assets/58055908/8ec8edf7-1b2a-493a-99cb-92b4435a0be9)
+
