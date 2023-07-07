@@ -8,8 +8,11 @@ from azure.cognitiveservices.vision.face import FaceClient
 from msrest.authentication import CognitiveServicesCredentials
 from azure.storage.blob import BlobServiceClient 
 from datetime import datetime
+import urllib.request
 
 # Variables
+root_url = "http://192.168.0.194"
+
 path = 'C:\\Users\\ricardo.cauduro\OneDrive - Kumulus\\Desktop\\Data\\NTB'
 
 credential = json.load(open('{}\\key.json'.format(path)))
@@ -62,7 +65,7 @@ def treinar(grupo):
             sys.exit('Training the person group has failed.')
         time.sleep(5)
 
-def uploadToBlobStorage(file_path,file_name)
+def uploadToBlobStorage(file_path,file_name):
    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
    blob_client = blob_service_client.get_blob_client(container=container_name, blob=file_name)
    with open(file_path,'rb') as data:
@@ -127,7 +130,10 @@ def iniciar():
             else:
                 draw_text = cv2.putText(frame, 'Nome: Desconhecido', (left,bottom+50),cv2.FONT_HERSHEY_TRIPLEX , 0.5,(0 ,0 ,255 ),1,cv2.LINE_AA)
                 faces[n]['nome'] ='Desconhecido'
-        
+
+            if bottom > 250 and nome != 'Desconhecido':
+                sendRequest(root_url+"/open")
+
         cv2.imshow('face_rect', draw_rect)
 
         # Create the file with the video captured data
@@ -149,8 +155,11 @@ def fim(nome_do_grupo):
     cv2.destroyAllWindows()
     face_client.person_group.delete(person_group_id = nome_do_grupo)
 
+def sendRequest(url):
+	urllib.request.urlopen(url)
+
 # Start the code
 iniciar()
 
 # Stop and clean
-fim('nome_do_grupo')
+fim('nome_do_grupo') 
