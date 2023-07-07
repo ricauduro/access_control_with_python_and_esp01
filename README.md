@@ -160,3 +160,10 @@ def sendRequest(url):
 
 sendRequest(root_url+"/open")
 ```
+
+The sendRequest we can insert into a IF conditon, to guarantee that the door will open when we get real close to it, and only if it recognize our faces.
+
+```python
+if bottom > 250 and nome != 'Desconhecido':
+                sendRequest(root_url+"/open")
+```
