@@ -85,7 +85,7 @@ with this we start the server
 WiFiServer server(80);
 ```
 
-Here we´ll set the gpio0 a 2 as outputs and set the initial state as LOW,
+Here we´ll set the gpio0 and 2 as outputs and set the initial state as LOW,
 ```C++
 void setup() {
   delay(5000);
