@@ -1,4 +1,4 @@
-# access_control_with_azure_and_esp01
+# Access contro with Python and ESP01
 
  Formerly, this project was using Azure Face API to perform face recognition, but once this service is not available for personal accounts, only for managed partners, I decided to build my own face recognition model, to use it with this project. It´s not an advanced model, but it will do the work for us.
  We´ll use python face_recognition module for this project, so these are our imports:
