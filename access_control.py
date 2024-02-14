@@ -1,165 +1,124 @@
+import face_recognition
 import cv2
-import requests
-import time
-import json
+import numpy as np
+import os
 import glob
-import sys
-from azure.cognitiveservices.vision.face import FaceClient
-from msrest.authentication import CognitiveServicesCredentials
-from azure.storage.blob import BlobServiceClient 
-from datetime import datetime
-import urllib.request
+import re
 
-# Variables
-root_url = "http://192.168.0.194"
+def get_name(nome):
+    padrao = r'\\([^\\]+?)\.'
+    match = re.search(padrao, nome)
+    if match:
+        name = match.group(1)
+        return name
 
-path = 'C:\\Users\\ricardo.cauduro\OneDrive - Kumulus\\Desktop\\Data\\NTB'
 
-credential = json.load(open('{}\\key.json'.format(path)))
-KEY = credential['KEY']
-ENDPOINT = credential['ENDPOINT']
 
-storage_account_key = credential['storage_account_key']
-storage_account_name = credential['storage_account_name']
-connection_string = credential['connection_string']
-container_name = credential['container_name']
+classificador = cv2.CascadeClassifier("haarcascade-frontalface-default.xml")
+classificadorOlho = cv2.CascadeClassifier("haarcascade-eye.xml")
+camera = cv2.VideoCapture(0)
+amostra = 1
+numeroAmostra = 1
+nome = input('Digite seu nome: ')
+id = input('Digite seu identificador: ')
+largura, altura = 220, 220
+print("Capturando as faces...")
 
-face_api_url = "https://eastus.api.cognitive.microsoft.com/face/v1.0/detect"
-headers = {'Content-Type': 'application/octet-stream', 'Ocp-Apim-Subscription-Key': KEY}
-params = {'detectionModel': 'detection_01', 'returnFaceId': 'true', 'returnFaceRectangle': 'true', 'returnFaceAttributes': 'age, gender, emotion'}
 
-GRUPOS = []
-PESSOAS = []
-ID = []
+while(True):
+    conectado, imagem = camera.read()
+    imagemCinza = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
+    facesDetectadas = classificador.detectMultiScale(imagemCinza, scaleFactor=1.5, minSize=(150,150))
 
-face_client = FaceClient(ENDPOINT, CognitiveServicesCredentials(KEY))
+    for(x, y, l, a) in facesDetectadas:
+        cv2.rectangle(imagem, (x,y), (x + l, y+ a), (0, 0, 255), 2)
+        regiao = imagem[y:y + a, x:x + l]
+        regiaoCinzaOlho = cv2.cvtColor(regiao, cv2.COLOR_BGR2GRAY)
+        olhosDetectatos = classificadorOlho.detectMultiScale(regiaoCinzaOlho)
+        for (ox, oy, ol, oa) in olhosDetectatos:
+            cv2.rectangle(regiao, (ox, oy), (ox + ol, oy + oa), (0, 255, 0), 2)
 
-# Functions
-def criar_grupo(grupo):
-    face_client.person_group.create(person_group_id=grupo, name=grupo)
-    print('Criado o grupo {}'.format(grupo))
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                if np.average(imagemCinza) > 110:
+                    imagemFace = cv2.resize(imagemCinza[y:y + a, x:x + l], (largura, altura))
+                    cv2.imwrite("fotos/{}.{}.{}.jpg".format(nome, str(id),str(amostra)), imagemFace)
+                    print("[foto {} capturada com sucesso]".format(str(amostra)))
+                    amostra += 1
 
-def criar_pessoa(pessoa, grupo):
-    globals()[pessoa] = face_client.person_group_person.create(grupo, pessoa)
-    print('Person ID:', globals()[pessoa].person_id)
-    ID.append(globals()[pessoa].person_id)
+    cv2.imshow("Face", imagem)
+    cv2.waitKey(1)
+    if(amostra >= numeroAmostra +1):
+        break
 
-    listaFotos = [file for file in glob.glob('*.jpg') if file.startswith(pessoa)]
-    time.sleep(1)
-    for image in listaFotos:
-        face_client.person_group_person.add_face_from_stream(
-            GRUPOS[0], globals()[pessoa].person_id, open(image, 'r+b'))
-        print('Incluida foto {}'.format(image))
-        time.sleep(1)
+print ("Faces capturadas com sucesso")
+camera.release()
+cv2.destroyAllWindows()
 
-def treinar(grupo):
-    print('Iniciando treino de {}'.format(grupo))
-    face_client.person_group.train(grupo)
-    while (True):
-        training_status = face_client.person_group.get_training_status(grupo)
-        print("Training status de {}: {}.".format(grupo, training_status.status))
-        if (training_status.status == 'succeeded'):
-            break
-        elif (training_status.status == 'failed'):
-            face_client.person_group.delete(person_group_id=grupo)
-            sys.exit('Training the person group has failed.')
-        time.sleep(5)
 
-def uploadToBlobStorage(file_path,file_name):
-   blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-   blob_client = blob_service_client.get_blob_client(container=container_name, blob=file_name)
-   with open(file_path,'rb') as data:
-      blob_client.upload_blob(data)
-      print('Uploaded {}.'.format(file_name))
+faces_encodings = []
+faces_names = []
+cur_direc = os.getcwd()
+path = os.path.join(cur_direc, 'fotos/')
+list_of_files = [f for f in glob.glob(path+'*.jpg')]
+names = list_of_files.copy()
 
-def iniciar():
-    GRUPOS.append(input('Defina o nome do grupo -> ').lower())
-    list(map(lambda x: criar_grupo(x), GRUPOS))
-    
-    lista_pessoas = []
-    nome_pessoa = None
-    while nome_pessoa != 'fim':
-        nome_pessoa = input("Digite o nome da pessoa para associar ao grupo '{}' ou digite 'fim' para terminar. -> ".format(GRUPOS[0])).lower()
-        if nome_pessoa != 'fim':
-            PESSOAS.append(nome_pessoa)
-            lista_pessoas.append(nome_pessoa)
-    
-    if len(lista_pessoas) == 1:
-        print('{} foi adicionado ao grupo {}'.format(PESSOAS[0], GRUPOS[0]))
-    else:
-        ultimo_nome = lista_pessoas.pop()
-        nomes = ', '.join(lista_pessoas)
-        print('{} e {} foram adicionados ao grupo {}'.format(nomes, ultimo_nome, GRUPOS[0]))
+for i,v in enumerate(list_of_files):
+    globals()['image_{}'.format(i)] = face_recognition.load_image_file(list_of_files[i])
+    globals()['image_encoding_{}'.format(i)] = face_recognition.face_encodings(globals()['image_{}'.format(i)])[0]
+    faces_encodings.append(globals()['image_encoding_{}'.format(i)])
+# Create array of known names
+    names[i] = names[i].replace(cur_direc, "")  
+    faces_names.append(names[i])
 
-    list(map(lambda x: criar_pessoa(x,GRUPOS[0]), PESSOAS))
-    list(map(lambda x: treinar(x), GRUPOS))
 
-    cam = cv2.VideoCapture(0)
+face_locations = []
+face_encodings = []
+face_names = []
+process_this_frame = True
 
-    while True:
-        folder_date = datetime.now().date().strftime('%Y%m%d')
-        filename_date = datetime.now().strftime('%Y%m%d_%H%M%S')
-        ret, frame = cam.read()
-        image = cv2.imencode('.jpg', frame)[1].tobytes()
+video_capture = cv2.VideoCapture(0)
+while True:
+    ret, frame = video_capture.read()
+    small_frame = cv2.resize(frame, (200, 200))
+    rgb_small_frame = small_frame[:, :, ::-1]
+    if process_this_frame:
+        face_locations = face_recognition.face_locations(rgb_small_frame)
+        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
 
-        response = requests.post(face_api_url, params=params, headers=headers, data=image)
-        response.raise_for_status()
-        faces = response.json()
-        face_ids = [face['faceId'] for face in faces]
-
-        global results
-        for face in face_ids:
-            results = face_client.face.identify(face_ids, GRUPOS[0])
-
-        # Get landmarks
-        for n, (face, person, id, nome) in enumerate(zip(faces, results, ID, PESSOAS)):
-            rect = face['faceRectangle']
-            left, top = rect['left'], rect['top']
-            right = int(rect['width'] + left)
-            bottom = int(rect['height'] + top)
-
-            draw_rect = cv2.rectangle(frame,(left, top), (right, bottom),(0, 255, 0), 3)
+        face_names = []
+        for face_encoding in face_encodings:
+            matches = face_recognition.compare_faces(faces_encodings, face_encoding)
+            name = "Unknown"
             
-            att = face['faceAttributes']
-            age = att['age']
+            face_distances = face_recognition.face_distance(faces_encodings, face_encoding)
+            best_match_index = np.argmin(face_distances)
+            if matches[best_match_index]:
+                name = get_name(faces_names[best_match_index])
+            face_names.append(name)
+    process_this_frame = not process_this_frame
+    # Display the results
+    for (top, right, bottom, left), name in zip(face_locations, face_names):
+        top = top * 4 - 200
+        right = right * 4 - 100
+        bottom = bottom * 4 - 200
+        left = left * 4 - 100
 
-            if len(person.candidates) > 0 and str(person.candidates[0].person_id) == str(id):
-                print('Person for face ID {} is identified in {}.{}'.format(person.face_id, 'Frame',person.candidates[0].person_id))
-                draw_text = cv2.putText(frame, 'Nome: {}'.format(nome), (left, bottom + 50), cv2.FONT_HERSHEY_TRIPLEX, 0.5, (0, 0, 255), 1,cv2.LINE_AA)
-                faces[n]['nome'] = str(nome)  
-            else:
-                draw_text = cv2.putText(frame, 'Nome: Desconhecido', (left,bottom+50),cv2.FONT_HERSHEY_TRIPLEX , 0.5,(0 ,0 ,255 ),1,cv2.LINE_AA)
-                faces[n]['nome'] ='Desconhecido'
+        # Draw a rectangle around the face
+        cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
 
-            if bottom > 250 and nome != 'Desconhecido':
-                sendRequest(root_url+"/open")
+        # Input text label with a name below the face
+        cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
+        font = cv2.FONT_HERSHEY_DUPLEX
+        cv2.putText(frame, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
 
-        cv2.imshow('face_rect', draw_rect)
+        # Display the resulting image
+        cv2.imshow('Video', frame)
+        
+        # Hit 'q' on the keyboard to quit!
+    k = cv2.waitKey(1)
+    if k%256 == 27:
+        print("Escape hit, closing...")
+        break
 
-        # Create the file with the video captured data
-        faces = [{**face, 'timeStamp': str(datetime.now()), 'bottomSize': str(bottom), 'location': 'Casa'} for face in faces]
-        json_string = json.dumps(faces, separators=(',', ':'))
-
-        with open('output\mydata-{}.json'.format(filename_date), 'w') as f:
-            json.dump(json.JSONDecoder().decode(json_string), f)
-            
-        # Calling a function to perform upload
-        uploadToBlobStorage('output\mydata-{}.json'.format(filename_date),'{}/mydata-{}.json'.format(folder_date,filename_date))
-
-        k = cv2.waitKey(1) & 0xFF # bitwise AND operation to get the last 8 bits
-        if k == 27:
-            print("Escape hit, closing...")
-            break
-
-def fim(nome_do_grupo):
-    cv2.destroyAllWindows()
-    face_client.person_group.delete(person_group_id = nome_do_grupo)
-
-def sendRequest(url):
-	urllib.request.urlopen(url)
-
-# Start the code
-iniciar()
-
-# Stop and clean
-fim('nome_do_grupo') 
+video_capture.release()
+cv2.destroyAllWindows()
