@@ -1,6 +1,6 @@
 # Access control with Python and ESP01
 
- Formerly, this project was using Azure Face API to perform face recognition, but once this service is not available for personal accounts, only for managed partners, I decided to build my own face recognition model, to use it with this project. It´s not an advanced model, but it will do the work for us.
+ Formerly, this project was using Azure Face API to perform face recognition, but once this service is not available anymore for personal accounts, only for managed partners, I decided to build my own face recognition model, to use it with this project. It´s not an advanced model, but it will do the work for us.
  We´ll use python face_recognition module for this project, so these are our imports:
 
  ```python
@@ -78,8 +78,10 @@ while True:
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 #Capture if we got a good quality image
                 if np.average(imagemCinza) > 110:
+
                     # Resize the captured face image to a fixed size
                     imagemFace = cv2.resize(imagemCinza[y:y + a, x:x + l], (largura, altura))
+
                     #Save the resized image
                     cv2.imwrite("fotos/{}.{}.{}.jpg".format(nome, str(id),str(amostra)), imagemFace)
                     print("[foto {} capturada com sucesso]".format(str(amostra)))
@@ -101,9 +103,47 @@ The haarcascade-eye.xml classifier is trained to identify eye features, such as 
 
 These classifiers are used together to enable the detection of faces and eyes in the images captured by the camera in real-time. They provide an efficient way to perform this detection, as they have been trained on a large dataset of images containing faces and eyes.
 
+I believe that the comments are enough to explain the rest of the code, wich is very simple
+
+Here´s the encode part
+
+```python
+faces_encodings = []
+faces_names = []
+cur_direc = os.getcwd()
+path = os.path.join(cur_direc, 'fotos/')
+list_of_files = [f for f in glob.glob(path+'*.jpg')]
+names = list_of_files.copy()
+
+for i,v in enumerate(list_of_files):
+    globals()['image_{}'.format(i)] = face_recognition.load_image_file(list_of_files[i])
+    globals()['image_encoding_{}'.format(i)] = face_recognition.face_encodings(globals()['image_{}'.format(i)])[0]
+    faces_encodings.append(globals()['image_encoding_{}'.format(i)])
+# Create array of known names
+    names[i] = names[i].replace(cur_direc, "")  
+    faces_names.append(names[i])
+```
+
+The code essentially loads images from the 'fotos/' directory, encodes the faces in those images using the face_recognition library, and stores the face encodings along with their respective names in the faces_encodings and faces_names lists.
+
+So, we need to assign to variables, faces_encodings and faces_name, that will be used to store the face encodings and corresponding names, respectively.
+
+Then we´ll use glob.glob() to retrieve a list of file names with the extension '.jpg' in the 'fotos/' directory, and store it in the list_of_files list.
+
+We´re using "globals()['image_{}'.format(i)]" tp dynamically create a variable name using the iteration number "i" and assign the person name using face_recognition.load_image_file() to that variable. For example, if i is 0, the variable name would be image_0, and so on.
+
+Then with "face_recognition.face_encodings(globals()['image_{}'.format(i)])[0]" we´re encoding the faces captured and assign to use along with "globals()['image_{}'.format(i)]", this way we can compare our encoded face and assign a name for it. 
+The [0] index is used to get the first face encoding in case multiple faces are detected in the image.
 
 
 
+
+
+
+
+
+
+8t
 
 So I´ll start explaining how we can move the data to azure and then how we can set up the Arduino to control the lock.
 
