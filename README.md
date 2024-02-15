@@ -23,9 +23,9 @@ import re
 	https://stackoverflow.com/questions/76629574/error-could-not-build-wheels-for-dlib-which-is-required-to-install-pyproject
  </pre>
  About OpenCV, some moduled are only present in opencv-contrib-python, so , if you already have OpenCV installed, it´s better to use an virtual-env and install it with 
- <pre>
+<pre>
 	 pip install opencv-contrib-python
- </pre>
+</pre>
 
  We can split the code in 3 main parts, capture, encode and validate.
 
@@ -97,9 +97,9 @@ while True:
 ```
 The classifiers used in this code are pre-trained XML files that contain information about specific visual features of faces and eyes. They are used to detect and locate regions of interest, such as faces and eyes, in an image.
 
-The haarcascade-frontalface-default.xml classifier is trained to identify frontal facial features, such as the position of the eyes, nose, mouth, and facial contours. It is used to detect and delimit the regions where faces are located.
+The **haarcascade-frontalface-default.xml** classifier is trained to identify frontal facial features, such as the position of the eyes, nose, mouth, and facial contours. It is used to detect and delimit the regions where faces are located.
 
-The haarcascade-eye.xml classifier is trained to identify eye features, such as shape and position. It is used to detect and delimit the regions where eyes are located within the previously detected faces.
+The **haarcascade-eye.xml** classifier is trained to identify eye features, such as shape and position. It is used to detect and delimit the regions where eyes are located within the previously detected faces.
 
 These classifiers are used together to enable the detection of faces and eyes in the images captured by the camera in real-time. They provide an efficient way to perform this detection, as they have been trained on a large dataset of images containing faces and eyes.
 
@@ -124,22 +124,92 @@ for i,v in enumerate(list_of_files):
     faces_names.append(names[i])
 ```
 
-The code essentially loads images from the 'fotos/' directory, encodes the faces in those images using the face_recognition library, and stores the face encodings along with their respective names in the faces_encodings and faces_names lists.
+The code essentially loads images from the **'fotos/'** directory, encodes the faces in those images using the **face_recognition** library, and stores the face encodings along with their respective names in the faces_encodings and faces_names lists.
 
-So, we need to assign to variables, faces_encodings and faces_name, that will be used to store the face encodings and corresponding names, respectively.
+So, we need to assign to variables, **faces_encodings** and **faces_name**, that will be used to store the face encodings and corresponding names, respectively.
 
-Then we´ll use glob.glob() to retrieve a list of file names with the extension '.jpg' in the 'fotos/' directory, and store it in the list_of_files list.
+Then we´ll use **glob.glob()** to retrieve a list of file names with the extension '.jpg' in the **'fotos/'** directory, and store it in the **list_of_files** list.
 
-We´re using "globals()['image_{}'.format(i)]" tp dynamically create a variable name using the iteration number "i" and assign the person name using face_recognition.load_image_file() to that variable. For example, if i is 0, the variable name would be image_0, and so on.
+We´re using **globals()['image_{}'.format(i)]** to dynamically create a variable name using the iteration number **i** and assign the person name using **face_recognition.load_image_file()** to that variable. For example, if i is 0, the variable name would be **image_0**, and so on.
 
-Then with "face_recognition.face_encodings(globals()['image_{}'.format(i)])[0]" we´re encoding the faces captured and assign to use along with "globals()['image_{}'.format(i)]", this way we can compare our encoded face and assign a name for it. 
+Then with **face_recognition.face_encodings(globals()['image_{}'.format(i)])[0]** we´re encoding the faces captured and assign to use along with **globals()['image_{}'.format(i)]**, this way we can compare our encoded face and assign a name for it. 
 The [0] index is used to get the first face encoding in case multiple faces are detected in the image.
 
+Now we´ll see how to validate and display our results
 
+```python
+# Initialize empty lists to store face data
+face_locations = []
+face_encodings = []
+face_names = []
+process_this_frame = True
 
+# Create VideoCapture object to access the webcam
+video_capture = cv2.VideoCapture(0)
 
+while True:
+    # Read the video frame
+    ret, frame = video_capture.read()
 
+    # Resize the frame for faster processing
+    small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+    
+    # Convert the frame from BGR to RGB format
+    rgb_small_frame = small_frame[:, :, ::-1]
 
+    if process_this_frame:
+        # Find face locations and encodings
+        face_locations = face_recognition.face_locations(rgb_small_frame)
+        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
+
+        # Clear the list of face names
+        face_names = []
+
+        # Iterate over each face encoding
+        for face_encoding in face_encodings:
+            # Compare face encoding with known faces
+            matches = face_recognition.compare_faces(faces_encodings, face_encoding)
+            name = "Unknown"
+
+            # Compute face distances to find the best match
+            face_distances = face_recognition.face_distance(faces_encodings, face_encoding)
+            best_match_index = np.argmin(face_distances)
+            
+            # If there is a match, assign the corresponding name
+            if matches[best_match_index]:
+                name = get_name(faces_names[best_match_index])
+            
+            # Add the name to the list of face names
+            face_names.append(name)
+    process_this_frame = not process_this_frame
+    # Display the results
+    for (top, right, bottom, left), name in zip(face_locations, face_names):
+        top = top * 4 - 200
+        right = right * 4 - 100
+        bottom = bottom * 4 - 200
+        left = left * 4 - 100
+
+        # Draw a rectangle around the face
+        cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+
+        # Input text label with a name below the face
+        cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
+        font = cv2.FONT_HERSHEY_DUPLEX
+        cv2.putText(frame, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
+
+        # Display the resulting image
+        cv2.imshow('Video', frame)
+        
+        # Hit 'q' on the keyboard to quit!
+    k = cv2.waitKey(1)
+    if k%256 == 27:
+        print("Escape hit, closing...")
+        break
+
+video_capture.release()
+cv2.destroyAllWindows()
+
+```
 
 
 
