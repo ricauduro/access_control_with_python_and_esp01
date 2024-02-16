@@ -211,9 +211,9 @@ cv2.destroyAllWindows()
 
 ```
 
+Now we have to add the block which will comunicate with ESP-01 and control the door´s lock
 
 
-8t
 
 So I´ll start explaining how we can move the data to azure and then how we can set up the Arduino to control the lock.
 
