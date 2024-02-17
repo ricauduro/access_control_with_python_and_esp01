@@ -1,6 +1,13 @@
 # Access control with Python and ESP01 (under construction)
 
  Formerly, this project was using Azure Face API to perform face recognition, but once this service is not available anymore for personal accounts, only for managed partners, I decided to build my own face recognition model, to use it with this project. It´s not an advanced model, but it will do the work for us.
+
+ The goal of this project is to create an access control system, which will grant or deny access to any place based on the video captured with a camera in front of a door. Something like this
+
+![image](https://github.com/ricauduro/access_control_with_python_and_esp01/assets/58055908/8ca84e1c-1a71-4caf-9948-ba82b54be8cc)
+
+
+ 
  We´ll use python face_recognition module for this project, so these are our imports:
 
  ```python
@@ -213,12 +220,26 @@ cv2.destroyAllWindows()
 
 Now we have to add the block which will comunicate with ESP-01 and control the door´s lock
 
+```python
+import urllib.request
+
+root_url = "http://192.168.0.194"
+
+def sendRequest(url):
+	urllib.request.urlopen("{}/open".format(url)) 
+
+if name != "Unknown":
+	sendRequest(root_url)
+```
+It´s that simple... we´ll send a request to a url if the person in the video is know. 
+
+When we reach ESP-01 set up I´ll explain how you can get root_url.
 
 
 So I´ll start explaining how we can move the data to azure and then how we can set up the Arduino to control the lock.
 
 ## move data to blob storage
-Now I´m going to explain how we can move the data we´re creating to a blob storage. I´ll create a new file for it.
+Now I´m going to explain how we can move the data we´re creating to a blob storage.
 
 We´ll  need these values to our key.json to use as credentials to connect to our blob storage.
 
