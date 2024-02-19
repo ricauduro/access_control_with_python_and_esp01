@@ -18,7 +18,7 @@ def sendRequest(url):
 
 
 def get_name(nome):
-    padrao = r'\\([^\\]+?)\.'
+    padrao = r"\\([^\\]+?)\."
     match = re.search(padrao, nome)
     if match:
         name = match.group(1)
@@ -31,8 +31,8 @@ classificadorOlho = cv2.CascadeClassifier("haarcascade-eye.xml")
 camera = cv2.VideoCapture(0)
 amostra = 1
 numeroAmostra = 1
-nome = input('Digite seu nome: ')
-id = input('Digite seu identificador: ')
+nome = input("Digite seu nome: ")
+id = input("Digite seu identificador: ")
 largura, altura = 220, 220
 print("Capturando as faces...")
 
@@ -50,7 +50,7 @@ while(True):
         for (ox, oy, ol, oa) in olhosDetectatos:
             cv2.rectangle(regiao, (ox, oy), (ox + ol, oy + oa), (0, 255, 0), 2)
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if cv2.waitKey(1) & 0xFF == ord("q"):
                 if np.average(imagemCinza) > 110:
                     imagemFace = cv2.resize(imagemCinza[y:y + a, x:x + l], (largura, altura))
                     cv2.imwrite("fotos/{}.{}.{}.jpg".format(nome, str(id),str(amostra)), imagemFace)
@@ -70,18 +70,16 @@ cv2.destroyAllWindows()
 faces_encodings = []
 faces_names = []
 cur_direc = os.getcwd()
-path = os.path.join(cur_direc, 'fotos/')
-list_of_files = [f for f in glob.glob(path+'*.jpg')]
-names = list_of_files.copy()
+path = os.path.join(cur_direc, "fotos/")
+list_of_files = [f for f in glob.glob("{}*.jpg".format(path))]
 
-for i,v in enumerate(list_of_files):
-    globals()['image_{}'.format(i)] = face_recognition.load_image_file(list_of_files[i])
-    globals()['image_encoding_{}'.format(i)] = face_recognition.face_encodings(globals()['image_{}'.format(i)])[0]
-    faces_encodings.append(globals()['image_encoding_{}'.format(i)])
-    # Create array of known names
-    names[i] = names[i].replace(cur_direc, "")  
-    faces_names.append(names[i])
-    print('encoding ok')
+
+for i, v in enumerate(list_of_files):
+    globals()["image_{}".format(i)] = face_recognition.load_image_file(list_of_files[i])
+    globals()["image_encoding_{}".format(i)] = face_recognition.face_encodings(globals()["image_{}".format(i)])[0]
+    faces_encodings.append(globals()["image_encoding_{}".format(i)])
+    faces_names.append(get_name(v))
+    print("encoding ok")
 
 
 face_locations = []
@@ -89,7 +87,7 @@ face_encodings = []
 face_names = []
 process_this_frame = True
 
-print('Ligando camera')
+print("Ligando camera")
 video_capture = cv2.VideoCapture(0)
 while True:
     ret, frame = video_capture.read()
@@ -107,7 +105,7 @@ while True:
             face_distances = face_recognition.face_distance(faces_encodings, face_encoding)
             best_match_index = np.argmin(face_distances)
             if matches[best_match_index]:
-                name = get_name(faces_names[best_match_index])
+                name = faces_names[best_match_index]
             face_names.append(name)
 
     process_this_frame = not process_this_frame
@@ -127,12 +125,12 @@ while True:
         cv2.putText(frame, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
 
         # Display the resulting image
-        cv2.imshow('Video', frame)
+        cv2.imshow("Video", frame)
 
         if (right > 480) and (name != "Unknown"):
             sendRequest(root_url)
         
-        # Hit 'q' on the keyboard to quit!
+        # Hit "q" on the keyboard to quit!
     k = cv2.waitKey(1)
     if k%256 == 27:
         print("Escape hit, closing...")
