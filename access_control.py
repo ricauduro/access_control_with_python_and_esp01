@@ -5,7 +5,6 @@ import os
 import glob
 import re
 import urllib.request
-import time
 
 root_url = "http://192.168.0.174"
 
@@ -90,7 +89,7 @@ face_encodings = []
 face_names = []
 process_this_frame = True
 
-print('ligando camera')
+print('Ligando camera')
 video_capture = cv2.VideoCapture(0)
 while True:
     ret, frame = video_capture.read()
@@ -130,14 +129,8 @@ while True:
         # Display the resulting image
         cv2.imshow('Video', frame)
 
-        print((right, bottom))
-        print(name)
-
         if (right > 480) and (name != "Unknown"):
-            print('ok')
             sendRequest(root_url)
-        else:
-            print('não detectado')
         
         # Hit 'q' on the keyboard to quit!
     k = cv2.waitKey(1)
