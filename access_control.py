@@ -4,6 +4,19 @@ import numpy as np
 import os
 import glob
 import re
+import urllib.request
+import time
+
+root_url = "http://192.168.0.174"
+
+
+def sendRequest(url):
+    try:
+        urllib.request.urlopen("{}/open".format(root_url))
+    except Exception as e:
+        if e == "Remote end closed connection without response":
+            pass
+
 
 def get_name(nome):
     padrao = r'\\([^\\]+?)\.'
@@ -66,9 +79,10 @@ for i,v in enumerate(list_of_files):
     globals()['image_{}'.format(i)] = face_recognition.load_image_file(list_of_files[i])
     globals()['image_encoding_{}'.format(i)] = face_recognition.face_encodings(globals()['image_{}'.format(i)])[0]
     faces_encodings.append(globals()['image_encoding_{}'.format(i)])
-# Create array of known names
+    # Create array of known names
     names[i] = names[i].replace(cur_direc, "")  
     faces_names.append(names[i])
+    print('encoding ok')
 
 
 face_locations = []
@@ -76,6 +90,7 @@ face_encodings = []
 face_names = []
 process_this_frame = True
 
+print('ligando camera')
 video_capture = cv2.VideoCapture(0)
 while True:
     ret, frame = video_capture.read()
@@ -95,6 +110,7 @@ while True:
             if matches[best_match_index]:
                 name = get_name(faces_names[best_match_index])
             face_names.append(name)
+
     process_this_frame = not process_this_frame
     # Display the results
     for (top, right, bottom, left), name in zip(face_locations, face_names):
@@ -113,6 +129,15 @@ while True:
 
         # Display the resulting image
         cv2.imshow('Video', frame)
+
+        print((right, bottom))
+        print(name)
+
+        if (right > 480) and (name != "Unknown"):
+            print('ok')
+            sendRequest(root_url)
+        else:
+            print('não detectado')
         
         # Hit 'q' on the keyboard to quit!
     k = cv2.waitKey(1)
