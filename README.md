@@ -382,17 +382,20 @@ Th Python code that we need to add to the face_recogniton code is very simple. J
 ```python
 import urllib.request
 
-root_url = "http://192.168.0.176"
+root_url = "http://192.168.0.174"
+
 
 def sendRequest(url):
-	urllib.request.urlopen(url) # send request to ESP
-
-sendRequest(root_url+"/open")
+    try:
+        urllib.request.urlopen("{}/open".format(root_url))
+    except Exception as e:
+        if e == "Remote end closed connection without response":
+            pass
 ```
 
 The sendRequest we can insert into a IF conditon, to guarantee that the door will open when we get real close to it, and only if it recognize our faces.
 
 ```python
-if bottom > 250 and nome != 'Desconhecido':
-                sendRequest(root_url+"/open")
+        if (right > 480) and (name != "Unknown"):
+            sendRequest(root_url)
 ```
