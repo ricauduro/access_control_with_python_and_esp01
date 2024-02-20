@@ -17,6 +17,11 @@ import numpy as np
 import os
 import glob
 import re
+import urllib.request
+from datetime import datetime
+import json
+from azure.storage.blob import BlobServiceClient
+import time
 ```
  I faced a lot of issues to install face_recognition module with "pip install face_recognition". This was the way I managed to make it work:
  <pre>
@@ -101,6 +106,10 @@ while True:
     #If enough pictures were collected, then stop capture
     if(amostra >= numeroAmostra +1):
         break
+
+print ("Faces capturadas com sucesso")
+camera.release()
+cv2.destroyAllWindows()
 ```
 The classifiers used in this code are pre-trained XML files that contain information about specific visual features of faces and eyes. They are used to detect and locate regions of interest, such as faces and eyes, in an image.
 
@@ -118,17 +127,16 @@ Here´s the encode part
 faces_encodings = []
 faces_names = []
 cur_direc = os.getcwd()
-path = os.path.join(cur_direc, 'fotos/')
-list_of_files = [f for f in glob.glob(path+'*.jpg')]
-names = list_of_files.copy()
+path = os.path.join(cur_direc, "fotos/")
+list_of_files = [f for f in glob.glob("{}*.jpg".format(path))]
 
-for i,v in enumerate(list_of_files):
-    globals()['image_{}'.format(i)] = face_recognition.load_image_file(list_of_files[i])
-    globals()['image_encoding_{}'.format(i)] = face_recognition.face_encodings(globals()['image_{}'.format(i)])[0]
-    faces_encodings.append(globals()['image_encoding_{}'.format(i)])
-# Create array of known names
-    names[i] = names[i].replace(cur_direc, "")  
-    faces_names.append(names[i])
+
+for i, v in enumerate(list_of_files):
+    globals()["image_{}".format(i)] = face_recognition.load_image_file(list_of_files[i])
+    globals()["image_encoding_{}".format(i)] = face_recognition.face_encodings(globals()["image_{}".format(i)])[0]
+    faces_encodings.append(globals()["image_encoding_{}".format(i)])
+    faces_names.append(get_name(v))
+    print("encoding ok")
 ```
 
 The code essentially loads images from the **'fotos/'** directory, encodes the faces in those images using the **face_recognition** library, and stores the face encodings along with their respective names in the faces_encodings and faces_names lists.
@@ -226,17 +234,24 @@ import urllib.request
 root_url = "http://192.168.0.194"
 
 def sendRequest(url):
-	urllib.request.urlopen("{}/open".format(url)) 
+    urllib.request.urlopen("{}/open".format(url)) 
 
-if name != "Unknown":
-	sendRequest(root_url)
+if (right > 480) and (name != "Unknown"):
+    sendRequest(root_url)
+    acesso = True
 ```
 It´s that simple... we´ll send a request to a url if the person in the video is know. 
 
 When we reach ESP-01 set up I´ll explain how you can get root_url.
 
+We want to collect this data so we can explore it later, so let´s create a json object to send it to Azure
 
-So I´ll start explaining how we can move the data to azure and then how we can set up the Arduino to control the lock.
+```python
+    # Gerando o arquivo com as informações captadas pelo video
+    faces = [{"nome": name, "acesso": acesso, "timeStamp": str(datetime.now()), "bottomSize": str(bottom), "location": "Casa"} for face in zip(face_locations, face_names)]
+    json_string = json.dumps(faces, separators=(",", ":"))
+```
+
 
 ## move data to blob storage
 Now I´m going to explain how we can move the data we´re creating to a blob storage.
@@ -244,20 +259,16 @@ Now I´m going to explain how we can move the data we´re creating to a blob sto
 We´ll  need these values to our key.json to use as credentials to connect to our blob storage.
 
 ```Python
-storage_account_key = credential['storage_account_key']
-storage_account_name = credential['storage_account_name']
-connection_string = credential['connection_string']
-container_name = credential['container_name']
+connect_str = os.getenv("connect_str")
+container_name = "landing-zone"
 ```
 And we´ll need another function to create the blob
 
 ```Python
-def uploadToBlobStorage(file_path,file_name)
-   blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-   blob_client = blob_service_client.get_blob_client(container=container_name, blob=file_name)
-   with open(file_path,'rb') as data:
-      blob_client.upload_blob(data)
-      print('Uploaded {}.'.format(file_name))
+def uploadToBlobStorage(data,file_name):
+    blob_service_client = BlobServiceClient.from_connection_string(connect_str)
+    blob_client = blob_service_client.get_blob_client(container=container_name, blob=file_name)
+    blob_client.upload_blob(data)
 ```
 
 Inside our code´s loop we´ll need to create two variables that we´ll use to create a folder for each day in the blob storage and another one to create the file name
@@ -268,18 +279,15 @@ Inside our code´s loop we´ll need to create two variables that we´ll use to c
         filename_date = datetime.now().strftime('%Y%m%d_%H%M%S')
 ```
 
-Then for each face we´ll append a timestamp value, the bottomSize a location, we´ll save the file locally and then call the function to send the file to our blob
+Then for each face we´ll append name of the person, if the access was granted, timestamp value, the bottomSize and location. Now we can call the function to send the file to our blob
 
 ```Python
-  # Gerando o arquivo com as informações captadas pelo video
-  faces = [{**face, 'timeStamp': str(datetime.now()), 'bottomSize': str(bottom), 'location': 'Casa'} for face in faces]
-  json_string = json.dumps(faces, separators=(',', ':'))
+# Gerando o arquivo com as informações captadas pelo video
+faces = [{"nome": name, "acesso": acesso, "timeStamp": str(datetime.now()), "bottomSize": str(bottom), "location": "Casa"} for face in zip(face_locations, face_names)]
+json_string = json.dumps(faces, separators=(",", ":"))
+time.sleep(1)
+uploadToBlobStorage(json_string,"{}/mydata-{}.json".format(folder_date,filename_date))
 
-  with open('output\mydata-{}.json'.format(filename_date), 'w') as f:
-            json.dump(json.JSONDecoder().decode(json_string), f)
-            
-  # Calling a function to perform upload
-  uploadToBlobStorage('output\mydata-{}.json'.format(filename_date),'{}/mydata-{}.json'.format(folder_date,filename_date))
 ```
 This is how the data should be in our storage
 
@@ -316,12 +324,10 @@ WiFiServer server(80);
 
 Here we´ll set the gpio0 and 2 as outputs and set the initial state as LOW,
 ```C++
-void setup() {
-  delay(5000);
+void setup()
+{
   pinMode(0, OUTPUT);
-  pinMode(2, OUTPUT);
-  digitalWrite(0, LOW);
-  digitalWrite(2, LOW);
+  digitalWrite(0, HIGH);
   // Serial.begin(9600);
   // Serial.print("Connecting to ");
   // Serial.println(ssid);
@@ -346,23 +352,22 @@ Then we can set the wifi mode as station and begin the connection
 On the loop we expecting to receive an request like this 'http://192.168.0.1/open' to open the lock. So we´ll parse our result to check if we have the 'open' at the end, and if so, we´ll change the value of the pins to HIGH, openning the lock
 
 ```C++
-void loop() {
+void loop()
+{
   WiFiClient client;
   client = server.available();
 
-  if (client == 1){
+  if (client == 1)
+  {
     String request = client.readStringUntil('\n');
     client.flush();
     // Serial.println(request);
 
-    if (request.indexOf("open") != -1){
-      digitalWrite(0, HIGH);
-      delay(5000);
+    if (request.indexOf("open") != -1)
+    {
       digitalWrite(0, LOW);
-      delay(1000);
-      digitalWrite(2, HIGH);
       delay(5000);
-      digitalWrite(2, LOW);
+      digitalWrite(0, HIGH);
       // Serial.println("Openning door");
     }
     // Serial.print("Client Disconnected");
@@ -370,10 +375,11 @@ void loop() {
   }
 }
 
+
 ```
 After seting up the ESP, you can upload this sketch to the ESP-01, but with a little modification. 
 
-I leave some lines commented, because we won´t need the serial output while running in production, but we´ll need it to get the ESP-01 IP to stabilish the communication between the ESP and our Python code. So before upload the first time, uncomment the lines, plug the ESP in the USB port, open the serial monitor and get the ESP-01 IP
+I leave some lines commented, because we won´t need the serial output while running in production, but we´ll need it to get the ESP-01 IP to establish the communication between the ESP and our Python code. So before upload the first time, uncomment the lines, plug the ESP in the USB port, open the serial monitor and get the ESP-01 IP
 
 ![image](https://github.com/ricauduro/access_control_face_reco_and_arduino/assets/58055908/8ec8edf7-1b2a-493a-99cb-92b4435a0be9)
 
@@ -392,6 +398,7 @@ def sendRequest(url):
         if e == "Remote end closed connection without response":
             pass
 ```
+Our ESP-01 don´t return any response, that´s why we have this try catch block
 
 The sendRequest we can insert into a IF conditon, to guarantee that the door will open when we get real close to it, and only if it recognize our faces.
 
