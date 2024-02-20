@@ -127,6 +127,7 @@ face_locations = []
 face_encodings = []
 face_names = []
 process_this_frame = True
+acesso = False
 
 # Create VideoCapture object to access the webcam
 video_capture = cv2.VideoCapture(0)
