@@ -1,11 +1,10 @@
-# Access control with Python and ESP01 (under construction)
+# Access control with Python and ESP01
 
  Formerly, this project was using Azure Face API to perform face recognition, but once this service is not available anymore for personal accounts, only for managed partners, I decided to build my own face recognition model, to use it with this project. It´s not an advanced model, but it will do the work for us.
 
  The goal of this project is to create an access control system, which will grant or deny access to any place based on the video captured with a camera in front of a door...something like this
 
 ![image](https://github.com/ricauduro/access_control_with_python_and_esp01/assets/58055908/8ca84e1c-1a71-4caf-9948-ba82b54be8cc)
-
 
  
  We´ll use python face_recognition module for this project, so these are our imports:
@@ -28,7 +27,7 @@ import time
 	Step 1: Download and run Build Tools for Visual Studio 2022 https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019
 	Step 2: Go to Individual Components and select C++ CMake tools for Windows and run through the install.
 	Step 3: Proceed to build your python application (e.g. dlib)
-	Step 4: Download dlib whl file, save it into your python folder, then  run "pip install dlib-19.22.99-cp39-cp39-win_amd64.whl"
+	Step 4: Download dlib whl file, save it into your python folder, then  run "pip install dlib-19.22.99-cp310-cp310-win_amd64.whl"
 	Step 5: pip install face_recognition
 	 
 	https://stackoverflow.com/questions/63648184/error-installing-packages-using-pip-you-must-use-visual-studio-to-build-a-pyth
@@ -240,36 +239,17 @@ if (right > 480) and (name != "Unknown"):
     sendRequest(root_url)
     acesso = True
 ```
-It´s that simple... we´ll send a request to a url if the person in the video is know. 
+It´s that simple... we´ll send a request to a url if two condition match:
 
-When we reach ESP-01 set up I´ll explain how you can get root_url.
+**- when we get real close to it**
+
+**- if it recognize our faces**
+
+
+
+When we reach ESP-01 set up I´ll explain how you can get **root_url**.
 
 We want to collect this data so we can explore it later, so let´s create a json object to send it to Azure
-
-```python
-    # Gerando o arquivo com as informações captadas pelo video
-    faces = [{"nome": name, "acesso": acesso, "timeStamp": str(datetime.now()), "bottomSize": str(bottom), "location": "Casa"} for face in zip(face_locations, face_names)]
-    json_string = json.dumps(faces, separators=(",", ":"))
-```
-
-
-## move data to blob storage
-Now I´m going to explain how we can move the data we´re creating to a blob storage.
-
-We´ll  need these values to our key.json to use as credentials to connect to our blob storage.
-
-```Python
-connect_str = os.getenv("connect_str")
-container_name = "landing-zone"
-```
-And we´ll need another function to create the blob
-
-```Python
-def uploadToBlobStorage(data,file_name):
-    blob_service_client = BlobServiceClient.from_connection_string(connect_str)
-    blob_client = blob_service_client.get_blob_client(container=container_name, blob=file_name)
-    blob_client.upload_blob(data)
-```
 
 Inside our code´s loop we´ll need to create two variables that we´ll use to create a folder for each day in the blob storage and another one to create the file name
 
@@ -289,6 +269,26 @@ time.sleep(1)
 uploadToBlobStorage(json_string,"{}/mydata-{}.json".format(folder_date,filename_date))
 
 ```
+
+
+## move data to blob storage
+Now I´m going to explain how we can move the data we´re creating to a blob storage.
+
+We´ll  need the blob connection string to our to use as credential to connect to our blob storage.
+
+```Python
+connect_str = os.getenv("connect_str")
+container_name = "landing-zone"
+```
+And we´ll need another function to upload the blob
+
+```Python
+def uploadToBlobStorage(data,file_name):
+    blob_service_client = BlobServiceClient.from_connection_string(connect_str)
+    blob_client = blob_service_client.get_blob_client(container=container_name, blob=file_name)
+    blob_client.upload_blob(data)
+```
+
 This is how the data should be in our storage
 
 ![image](https://github.com/ricauduro/video_face_recognition/assets/58055908/b84120f9-c0e0-4894-b0fa-7eb3fbd38ab3)
@@ -406,3 +406,5 @@ The sendRequest we can insert into a IF conditon, to guarantee that the door wil
         if (right > 480) and (name != "Unknown"):
             sendRequest(root_url)
 ```
+
+I´ll record a short video showing how everything works.... soon.
