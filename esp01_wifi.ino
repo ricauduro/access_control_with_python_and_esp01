@@ -26,6 +26,7 @@ void setup()
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
+    // Serial.print(".");
   }
 
   // Serial.println("ESP-01 is connected to the ssid");
